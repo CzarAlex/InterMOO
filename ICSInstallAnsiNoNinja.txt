@@ -1,0 +1,209 @@
+dP   dP   dP                            oo                   
+88   88   88                                                 
+88  .8P  .8P .d8888b. 88d888b. 88d888b. dP 88d888b. .d8888b. 
+88  d8'  d8' 88'  `88 88'  `88 88'  `88 88 88'  `88 88'  `88 
+88.d8P8.d8P  88.  .88 88       88    88 88 88    88 88.  .88 
+8888' Y88'   `88888P8 dP       dP    dP dP dP    dP `8888P88 
+ooooooooooooooooooooooooooooooooooooooooooooooooooooo~~~~.88~
+                                                     d8888P  
+
+Please read this little introduction before pasting the code in.
+=This code MUST be pasted in by a Wizard.=
+
+1) Make a new player called InterMoo
+2) Make him a normal character. (Not a Wiz or Progger)
+3) Assign him the email address czaralex@gmail.com
+4) Assign him a password
+5) Email your MOO's address, and InterMoo's password to
+   czaralex@gmail.com
+6) Paste in the code below
+
+This version requires that you use a core that has ANSI.
+
+-------PASTE BELOW THIS LINE ---------------------------------
+
+
+@create $feature called "InterMoo Channel System",ICS
+@corify ics as ics
+
+@prop $ics.members {}
+@prop $ics.intermoo
+@prop $ics.block {}
+@prop $ics.gaglist {}
+
+;$ics.intermoo = $string_utils:match_player("InterMoo")
+;$ics.help_msg = {"InterMoo Channel System", "by Czar @ LusitaniaMOO (4/24/06)", "", "@joinintermoo               - Joins the channel.", "", "@leaveintermoo              - Leaves the channel.", "", "> text                      - Sends a message.", "", ">> emote                    - Send an emote.", "", "@imwhochan                  - Show who is on the channel.", "", "@icsgag name1 name2 name3   - Ignore messages from that player. ", "                              Run again to see them.", "@icsgag                     - See who you are gaging from the channel", "", "@icsblock name1 name2 name3 - Wizards only - Disallow certain people ", "                              from using the ICS. ", "                              Run again to allow them.", "", "@icsblock                   - Wizards only - See who is being blocked ", "                              from the channel.", "", "InterMoo Channel content should be kept at a PG-13 level."}
+
+@verb $ics:@joinintermoo none none none "x"
+@prog $ics:@joinintermoo
+if (player in $ics.block)
+  player:tell("You are blocked from using the InterMoo Channel.");
+  return;
+endif
+if (player in this.members)
+  player:tell("You're already on the InterMoo channel.");
+else
+  this.members = {@this.members, player};
+  this:msg("* " + player:title() + " has joined this channel.");
+endif
+.
+
+@verb $ics:@leaveintermoo none none none "x"
+@prog $ics:@leaveintermoo
+if (player in this.members)
+  this:msg("* " + player:title() + " has left this channel.");
+  suspend(1);
+  this.members = setremove(this.members, player);
+else
+  player:tell("You're not on the InterMoo channel.");
+endif
+.
+
+@verb $ics:msg this none this "x"
+@prog $ics:msg
+if (caller != this)
+  return raise(E_PERM);
+endif
+notify(this.intermoo, "[[normal][red]InterMoo[normal] (" + $network.moo_name + ")] " + args[1]);
+.
+
+@verb $ics:> any any any "x"
+@prog $ics:>
+if (player in this.members)
+  this:msg(player:title() + "> " + argstr);
+else
+  player:tell("You're not on the InterMoo channel.");
+endif
+.
+
+@verb $ics:>> any any any "x"
+@prog $ics:>>
+if (player in this.members)
+  this:msg("* " + player:title() + " " + argstr);
+else
+  player:tell("You're not on the InterMoo channel.");
+endif
+.
+
+@verb $ics:@imwhochan none none none "x"
+@prog $ics:@imwhochan
+notify($ics.intermoo, "i " + tostr(player));
+.
+
+@verb $ics:@icsgag any any any x
+@prog $ics:@icsgag
+if (!(player in $list_utils:slice(this.gaglist, 1)))
+  this.gaglist = {@this.gaglist, {player, {}}};
+endif
+spot = player in $list_utils:slice(this.gaglist, 1);
+if (!args)
+  if (this.gaglist[spot][2] == {})
+    player:tell("Your ICS gaglist is empty.");
+    return;
+  else
+    player:tell("You are currently gagging ", $string_utils:english_list(this.gaglist[spot][2]), " from the InterMoo Channel.");
+    return;
+  endif
+endif
+for a in ($string_utils:explode(argstr))
+  if (a in this.gaglist[spot][2])
+    this.gaglist[spot][2] = setremove(this.gaglist[spot][2], a);
+    player:tell(a, " has been removed from your ICS gaglist.");
+  else
+    this.gaglist[spot][2] = {@this.gaglist[spot][2], a};
+    player:tell(a, " has been added to your ICS gaglist.");
+  endif
+endfor
+.
+
+@verb $ics:@icsblock any any any x
+@prog $ics:@icsblock
+if (!player.wizard)
+  player:tell("Sorry. This isn't for you.");
+  return;
+endif
+if (!args)
+  if (this.block == {})
+    player:tell("The ICS block list is empty.");
+    return;
+  else
+    blist = {};
+    for a in (this.block)
+      if (valid(a))
+        blist = {@blist, a:title()};
+      endif
+    endfor
+    player:tell("You are currently blocking ", $string_utils:english_list(blist), " from using the InterMoo Channel.");
+    return;
+  endif
+endif
+folks = {};
+for a in ($string_utils:explode(argstr))
+  dude = $string_utils:match_player(a);
+  if (dude in {#-2, #-3})
+    player:tell(a, " is not matched to a player.");
+  else
+    folks = {@folks, dude};
+  endif
+endfor
+for b in (folks)
+  if (b in this.block)
+    this.block = setremove(this.block, b);
+    player:tell(b:title(), " has been removed from the ICS block list.");
+  else
+    this.block = {@this.block, b};
+    player:tell(b:title(), " has been added to the ICS block list.");
+    if (b in $ics.members)
+      $ics.members = setremove($ics.members, b);
+    endif
+  endif
+endfor
+.
+
+@verb ~intermoo:chanmsg any any any
+@prog ~intermoo:chanmsg
+for a in ($ics.members)
+  if ($object_utils:connected(a))
+    if (a in $list_utils:slice($ics.gaglist, 1))
+      ok = 1;
+      for b in ($ics.gaglist[a in $list_utils:slice($ics.gaglist, 1)][2])
+        if (index($ansi_utils:delete(argstr), tostr(" " + b + "> ")) || index($ansi_utils:delete(argstr), tostr(" * " + b + " ")))
+          ok = 0;
+        endif
+      endfor
+      if (ok)
+       a:tell(argstr);
+      endif
+    else
+      a:tell(argstr);
+    endif
+  endif
+endfor
+.
+
+@verb ~intermoo:sendwho any any any
+@prog ~intermoo:sendwho
+len = length(args[2]) + 1;
+dude = toobj(args[2]);
+spot = index(argstr, args[2]) + len;
+data = argstr[spot..$];
+dude:tell("[[normal][red]InterMoo[normal]] " + data);
+.
+
+@verb ~intermoo:getwho any none none
+@prog ~intermoo:getwho
+dude = args[2];
+foos = {};
+for a in ($ics.members)
+  if (a in connected_players())
+    foos = {@foos, a:title()};
+  endif
+endfor
+if (foos == {})
+  foos = {"[normal][gray]-[normal]"};
+endif
+notify($ics.intermoo, "whoczarchan " + dude + " [normal][gray]" + $network.moo_name + "[normal]: " + $string_utils:english_list(foos, 1));
+.
+
+;player:tell($ics, " created and @corified at $ics.");
+;player:tell("[bold][red]Please send an email to czaralex@gmail.com including your MOOs address, and the password of the InterMoo character.[normal]");
